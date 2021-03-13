@@ -1,16 +1,18 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
+)
 
 const (
 	SyncContacts = "sync-contacts"
 )
 
 var topicQueryMap = map[string]string{
-	"sync-contacts": `
-		"MATCH (n) RETURN n"
-	`,
-	"upvote-post": `
+	"post-upvote": `
+		"CREATE (n:TestNode {key: value}) RETURN n"
 	`,
 }
 
@@ -26,7 +28,27 @@ func QueryFromTopic(topic string) (string, error) {
 	return query, nil
 }
 
-func Neo4jRunQuery(query string, params map[string]interface{}) error {
+func Neo4jRunQuery(session *LockableNeo4jSession, query string, params map[string]interface{}) error {
+
+	session.mu.Lock()
+	_, err := session.session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+		result, err := transaction.Run(query, params)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if result.Next() {
+			return result.Record(), nil
+		}
+
+		return nil, result.Err()
+	})
+	session.mu.Unlock()
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
