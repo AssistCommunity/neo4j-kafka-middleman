@@ -53,9 +53,7 @@ func main() {
 
 	kafkaMessages, errors := consume(topics, kafkaConsumer)
 
-	neo4jErrors := make(chan error)
-
-	go neo4jProcessMessage(safeNeo4jSession, kafkaMessages, neo4jErrors)
+	go neo4jProcessMessage(safeNeo4jSession, kafkaMessages)
 
 	for {
 		err := <-errors
@@ -98,7 +96,7 @@ func consumePartition(consumer sarama.PartitionConsumer, messages chan *sarama.C
 	}
 }
 
-func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.ConsumerMessage, errors chan error) {
+func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.ConsumerMessage) {
 	for {
 		message := <-messages
 
@@ -107,8 +105,8 @@ func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.Co
 		query, err := QueryFromTopic(topic)
 
 		if err != nil {
-			errors <- err
-			return // replace with continue
+			fmt.Println(err)
+			continue // replace with continue
 		}
 
 		var params map[string]interface{}
@@ -116,8 +114,8 @@ func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.Co
 		err = json.Unmarshal(message.Value, &params)
 
 		if err != nil {
-			errors <- err
-			return // replace with continue
+			fmt.Println(err)
+			continue // replace with continue
 		}
 
 		fmt.Println(topic, query, params)

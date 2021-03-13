@@ -12,7 +12,18 @@ const (
 
 var topicQueryMap = map[string]string{
 	"post-upvote": `
-		CREATE (n:TestNode {key: "value"}) RETURN n
+		CREATE (n:TestNode {key: value}) RETURN n
+	`,
+	"sync-contacts": `
+		MATCH (CU:GraphUser {email: $email})
+		WITH CU
+		UNWIND $contacts as contact
+		MERGE (u:GraphUser {phone_number: contact.phone_number})
+		WITH CU, u, contact
+		MERGE (CU)-[r:HAS_CONTACT]->(u)
+		SET r.contact_name = contact.name,
+			r.synced_on = CASE WHEN r.date IS NULL THEN datetime() ELSE r.date END
+		RETURN CU, r, u
 	`,
 }
 
