@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/Shopify/sarama"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
+	"google.golang.org/genproto/googleapis/cloud/aiplatform/v1/schema/predict/params"
 )
 
 type LockableNeo4jSession struct {
@@ -101,6 +103,24 @@ func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.Co
 	for {
 		message := <-messages
 
-		fmt.Println(message)
+		topic := message.Topic
+
+		query, err := QueryFromTopic(topic)
+
+		if err != nil {
+			errors <- err
+			return // replace with continue
+		}
+
+		var params map[string]interface{}
+
+		err = json.Unmarshal(message.Value, &params)
+
+		if err != nil {
+			errors <- err
+			return // replace with continue
+		}
+
+		Neo4jRunQuery(session, query, params)
 	}
 }
