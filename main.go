@@ -53,17 +53,14 @@ func main() {
 
 	kafkaMessages, errors := consume(topics, kafkaConsumer)
 
-	go func() {
-		for {
-			err := <-errors
-			fmt.Printf("%s\n", err)
-		}
-	}()
-
 	neo4jErrors := make(chan error)
 
 	go neo4jProcessMessage(safeNeo4jSession, kafkaMessages, neo4jErrors)
 
+	for {
+		err := <-errors
+		fmt.Printf("%s\n", err)
+	}
 }
 
 func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
