@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -67,12 +66,13 @@ func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMess
 	messages := make(chan *sarama.ConsumerMessage)
 	errors := make(chan *sarama.ConsumerError)
 	for _, topic := range topics {
-		if strings.Contains(topic, "__consumer_offsets") {
+		if strings.HasPrefix(topic, "__") {
 			continue
 		}
 		partitions, _ := master.Partitions(topic)
 		// this only consumes partition no 1, you would probably want to consume all partitions
 		for _, partition := range partitions {
+			fmt.Println("Here")
 			consumer, err := master.ConsumePartition(topic, partition, sarama.OffsetOldest)
 
 			if err != nil {
@@ -100,31 +100,7 @@ func consumePartition(consumer sarama.PartitionConsumer, messages chan *sarama.C
 func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.ConsumerMessage, errors chan error) {
 	for {
 		message := <-messages
-		mssg, _ := json.Marshal(message)
-		fmt.Printf(string(mssg))
 
-		topic := message.Topic
-
-		query, err := QueryFromTopic(topic)
-		if err != nil {
-			errors <- err
-			continue
-		}
-
-		messageBody := message.Value
-
-		params := make(map[string]interface{})
-
-		err = json.Unmarshal(messageBody, &params)
-		if err != nil {
-			errors <- err
-			continue
-		}
-
-		err = Neo4jRunQuery(session, query, params)
-		if err != nil {
-			errors <- err
-			continue
-		}
+		fmt.Println(message)
 	}
 }
