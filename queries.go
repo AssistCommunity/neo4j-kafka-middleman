@@ -12,7 +12,7 @@ const (
 
 var topicQueryMap = map[string]string{
 	"post-upvote": `
-		"CREATE (n:TestNode {key: value}) RETURN n"
+		CREATE (n:TestNode {key: "value"}) RETURN n
 	`,
 }
 
@@ -47,6 +47,7 @@ func Neo4jRunQuery(session *LockableNeo4jSession, query string, params map[strin
 	session.mu.Unlock()
 
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 

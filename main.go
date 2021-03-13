@@ -8,7 +8,6 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
-	"google.golang.org/genproto/googleapis/cloud/aiplatform/v1/schema/predict/params"
 )
 
 type LockableNeo4jSession struct {
@@ -75,7 +74,7 @@ func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMess
 		// this only consumes partition no 1, you would probably want to consume all partitions
 		for _, partition := range partitions {
 			fmt.Println("Here")
-			consumer, err := master.ConsumePartition(topic, partition, sarama.OffsetOldest)
+			consumer, err := master.ConsumePartition(topic, partition, sarama.OffsetNewest)
 
 			if err != nil {
 				panic(err)
@@ -121,6 +120,7 @@ func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.Co
 			return // replace with continue
 		}
 
+		fmt.Println(topic, query, params)
 		Neo4jRunQuery(session, query, params)
 	}
 }
