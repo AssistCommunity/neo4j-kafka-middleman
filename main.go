@@ -1,16 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"strings"
 
 	"github.com/Shopify/sarama"
+	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
-
-type Event struct {
-	topic string
-	data  []interface{}
-}
 
 func main() {
 
@@ -27,15 +23,33 @@ func main() {
 		panic(err)
 	}
 
+	neo4jConnString := "bolt://52.66.229.170:7687"
+
+	driver, err := neo4j.NewDriver(neo4jConnString, neo4j.BasicAuth("neo4j", "neo4j", ""))
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = driver.VerifyConnectivity()
+
+	if err != nil {
+		panic(err)
+	}
+
 	topics, _ := kafkaConsumer.Topics()
 
 	messages, errors := consume(topics, kafkaConsumer)
 
-	go neo4jProcessMessage(messages)
+	go func() {
+		for {
+			err = <-errors
+		}
+	}()
 
-	for {
-		err = <-errors
-	}
+	neo4jErrors := make(chan error)
+
+	go neo4jProcessMessage(messages, neo4jErrors)
 
 }
 
@@ -73,10 +87,28 @@ func consumePartition(consumer sarama.PartitionConsumer, messages chan *sarama.C
 	}
 }
 
-func neo4jProcessMessage(messages chan *sarama.ConsumerMessage) {
+func neo4jProcessMessage(messages chan *sarama.ConsumerMessage, errors chan error) {
 	for {
 		message := <-messages
 
-		fmt.Println("%+v", message)
+		topic := message.Topic
+
+		query, err := QueryFromTopic(topic)
+		if err != nil {
+			errors <- err
+			continue
+		}
+
+		messageBody := message.Value
+
+		params := make(map[string]interface{})
+
+		json.Unmarshal(messageBody, params)
+
+		err = Neo4jRunQuery(query, params)
+		if err != nil {
+			errors <- err
+			continue
+		}
 	}
 }
