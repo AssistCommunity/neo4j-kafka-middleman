@@ -45,7 +45,23 @@ var topicQueryMap = map[string]string{
 	"follow-user": `
 		MATCH (CU:User {email: $self_email}), (u:User {email: $target_email})
 		MERGE (CU)-[r:FOLLOWS]->(u)
+		MERGE (CU)-[s:AFFINITY_EDGE]->(u)
+		SET s.follows_score = 1
+		SET s.unfollows_score = 0
+		
 		RETURN CU, u
+	`,
+	"unfollow-user": `
+		MATCH (CU:User {email: $self_email})-[r:FOLLOWS]->(u:User {email: $target_email})
+		DELETE r
+		MATCH (CU)-[s:AFFINITY_EDGE]->(u)
+		SET s.follows_score = 0
+		SET s.unfollows_score = 1
+
+		RETURN CU, u
+	`,
+	"complete-profile": `
+
 	`,
 }
 
