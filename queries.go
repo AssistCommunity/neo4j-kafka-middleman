@@ -14,16 +14,38 @@ var topicQueryMap = map[string]string{
 	"post-upvote": `
 		CREATE (n:TestNode {key: value}) RETURN n
 	`,
+
 	"sync-contacts": `
-		MATCH (CU:GraphUser {email: $email})
+		MATCH (CU:User {email: $email})
 		WITH CU
 		UNWIND $contacts as contact
-		MERGE (u:GraphUser {phone_number: contact.phone_number})
-		WITH CU, u, contact
+		MERGE (u:User {phone_number: contact.phone_number}) WHERE u.phone_number <> CU.phone_number 
+		ON CREATE 
+			SET u.on_app = false
 		MERGE (CU)-[r:HAS_CONTACT]->(u)
 		SET r.contact_name = contact.name,
 			r.synced_on = CASE WHEN r.date IS NULL THEN datetime() ELSE r.date END
+		MERGE (CU)-[s:AFFINITY_EDGE]->(u)
+		ON CREATE 
+			SET s.total_score = 0
+		SET s.has_contact_score = 1
 		RETURN CU, r, u
+	`,
+	"user-init": `
+		CREATE (CU:User {email: $email, phone_number: $phone_number, on_app: true}) 
+		WITH CU
+		MATCH (u:User {on_app: true}) WHERE u.email <> CU.email
+		WITH CU, u
+		CREATE (CU)-[r1:AFFINITY_EDGE]->(u)
+		WITH CU, u, r1
+		CREATE (CU)<-[r2:AFFINITY_EDGE]-(u)
+		SET r1.total_score = 0, r2.total_score = 0
+		RETURN CU 
+	`,
+	"follow-user": `
+		MATCH (CU:User {email: $self_email}), (u:User {email: $target_email})
+		MERGE (CU)-[r:FOLLOWS]->(u)
+		RETURN CU, u
 	`,
 }
 
