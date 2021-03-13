@@ -37,9 +37,10 @@ func main() {
 		panic(err)
 	}
 
+	neo4jSession := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	topics, _ := kafkaConsumer.Topics()
 
-	messages, errors := consume(topics, kafkaConsumer)
+	kafkaMessages, errors := consume(topics, kafkaConsumer)
 
 	go func() {
 		for {
@@ -49,7 +50,7 @@ func main() {
 
 	neo4jErrors := make(chan error)
 
-	go neo4jProcessMessage(messages, neo4jErrors)
+	go neo4jProcessMessage(neo4jSession, kafkaMessages, neo4jErrors)
 
 }
 
@@ -87,7 +88,7 @@ func consumePartition(consumer sarama.PartitionConsumer, messages chan *sarama.C
 	}
 }
 
-func neo4jProcessMessage(messages chan *sarama.ConsumerMessage, errors chan error) {
+func neo4jProcessMessage(session neo4j.Session, messages chan *sarama.ConsumerMessage, errors chan error) {
 	for {
 		message := <-messages
 
@@ -103,7 +104,11 @@ func neo4jProcessMessage(messages chan *sarama.ConsumerMessage, errors chan erro
 
 		params := make(map[string]interface{})
 
-		json.Unmarshal(messageBody, params)
+		err = json.Unmarshal(messageBody, &params)
+		if err != nil {
+			errors <- err
+			continue
+		}
 
 		err = Neo4jRunQuery(query, params)
 		if err != nil {
