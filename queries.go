@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/AssistCommunity/neo4j-kafka-middleman/logger"
 	"github.com/AssistCommunity/neo4j-kafka-middleman/neo4jIntegration"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
@@ -99,6 +101,7 @@ func QueryFromTopic(topic string) (string, error) {
 func Neo4jRunQuery(session *neo4jIntegration.LockableNeo4jSession, query string, params map[string]interface{}) error {
 
 	session.Mu.Lock()
+	start := time.Now()
 	_, err := session.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		result, err := transaction.Run(query, params)
 
@@ -112,12 +115,17 @@ func Neo4jRunQuery(session *neo4jIntegration.LockableNeo4jSession, query string,
 
 		return nil, result.Err()
 	})
+
+	elapsed := time.Since(start)
 	session.Mu.Unlock()
 
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
+
+	var log = logger.GetLogger()
+	log.Infof("Neo4j query executed in %s", elapsed)
 
 	return nil
 }
