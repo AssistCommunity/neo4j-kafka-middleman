@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/AssistCommunity/neo4j-kafka-middleman/neo4jIntegration"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
 
@@ -67,7 +68,7 @@ var topicQueryMap = map[string]string{
 		SET r1.year_score = CASE WHEN CU.year = u.year THEN 1 ELSE 0 END,
 			r1.hostel_score = CASE WHEN CU.hostel = u.hostel THEN 1 ELSE 0 END,
 			r2.year_score = CASE WHEN CU.year = u.year THEN 1 ELSE 0 END,
-			r2.hostel_score = CASE WHEN CU.hostel = u.hostel THEN 1 ELSE 0 END,
+			r2.hostel_score = CASE WHEN CU.hostel = u.hostel THEN 1 ELSE 0 END
 
 		SET r1.branch_score = CASE WHEN CU.branch1 = u.branch2 XOR CU.branch2 = u.branch1 OR CU.branch1 = u.branch1 XOR CU.branch2 = u.branch1 THEN 1 
 								   WHEN CU.branch1 = u.branch2 AND CU.branch2 = u.branch1 OR CU.branch1 = u.branch1 AND CU.branch2 = u.branch1 THEN 2
@@ -89,10 +90,10 @@ func QueryFromTopic(topic string) (string, error) {
 	return query, nil
 }
 
-func Neo4jRunQuery(session *LockableNeo4jSession, query string, params map[string]interface{}) error {
+func Neo4jRunQuery(session *neo4jIntegration.LockableNeo4jSession, query string, params map[string]interface{}) error {
 
-	session.mu.Lock()
-	_, err := session.session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+	session.Mu.Lock()
+	_, err := session.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		result, err := transaction.Run(query, params)
 
 		if err != nil {
@@ -105,7 +106,7 @@ func Neo4jRunQuery(session *LockableNeo4jSession, query string, params map[strin
 
 		return nil, result.Err()
 	})
-	session.mu.Unlock()
+	session.Mu.Unlock()
 
 	if err != nil {
 		fmt.Println(err)

@@ -3,57 +3,37 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-	"sync"
 
+	"github.com/AssistCommunity/neo4j-kafka-middleman/kafka"
+	"github.com/AssistCommunity/neo4j-kafka-middleman/logger"
+	"github.com/AssistCommunity/neo4j-kafka-middleman/neo4jIntegration"
 	"github.com/Shopify/sarama"
-	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
 
-type LockableNeo4jSession struct {
-	session neo4j.Session
-	mu      sync.Mutex
-}
-
 func main() {
+	config, _ := NewConfig()
+	fmt.Printf("%+v\n", config)
 
-	// Kafka config params
-	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.ClientID = "go-kafka-middleman"
-	kafkaConfig.Consumer.Return.Errors = true
+	log := logger.GetLogger()
 
-	kafkaBrokers := []string{"b-2.assistkafka.9y2zsl.c3.kafka.ap-south-1.amazonaws.com:9092", "b-1.assistkafka.9y2zsl.c3.kafka.ap-south-1.amazonaws.com:9092"}
+	neo4jDriver, _ := neo4jIntegration.GetDriver(config.Neo4j)
+	safeNeo4jSession := neo4jIntegration.GetLockableSession(neo4jDriver)
 
-	kafkaConsumer, err := sarama.NewConsumer(kafkaBrokers, kafkaConfig)
-
-	if err != nil {
-		panic(err)
-	}
-
-	neo4jConnString := "bolt://52.66.229.170:7687"
-
-	driver, err := neo4j.NewDriver(neo4jConnString, neo4j.BasicAuth("neo4j", "assistneo4jpassword", ""))
+	kafkaConsumer, err := kafka.GetConsumer(config.Kafka)
 
 	if err != nil {
-		panic(err)
+		log.Error(err)
 	}
 
-	err = driver.VerifyConnectivity()
+	topics, err := kafkaConsumer.Topics()
 
 	if err != nil {
-		panic(err)
+		log.Error(err)
 	}
 
-	neo4jSession := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	kafkaMessages, errors := kafka.Consume(topics, kafkaConsumer)
 
-	safeNeo4jSession := &LockableNeo4jSession{
-		session: neo4jSession,
-	}
-	topics, _ := kafkaConsumer.Topics()
-
-	kafkaMessages, errors := consume(topics, kafkaConsumer)
-
-	go neo4jProcessMessage(safeNeo4jSession, kafkaMessages)
+	go neo4jProcessMessage(&safeNeo4jSession, kafkaMessages)
 
 	for {
 		err := <-errors
@@ -61,42 +41,7 @@ func main() {
 	}
 }
 
-func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
-	messages := make(chan *sarama.ConsumerMessage)
-	errors := make(chan *sarama.ConsumerError)
-	for _, topic := range topics {
-		if strings.HasPrefix(topic, "__") {
-			continue
-		}
-		partitions, _ := master.Partitions(topic)
-		// this only consumes partition no 1, you would probably want to consume all partitions
-		for _, partition := range partitions {
-			fmt.Println("Here")
-			consumer, err := master.ConsumePartition(topic, partition, sarama.OffsetNewest)
-
-			if err != nil {
-				panic(err)
-			}
-
-			go consumePartition(consumer, messages, errors)
-		}
-	}
-
-	return messages, errors
-}
-
-func consumePartition(consumer sarama.PartitionConsumer, messages chan *sarama.ConsumerMessage, errors chan *sarama.ConsumerError) {
-	for {
-		select {
-		case consumeError := <-consumer.Errors():
-			errors <- consumeError
-		case message := <-consumer.Messages():
-			messages <- message
-		}
-	}
-}
-
-func neo4jProcessMessage(session *LockableNeo4jSession, messages chan *sarama.ConsumerMessage) {
+func neo4jProcessMessage(session *neo4jIntegration.LockableNeo4jSession, messages chan *sarama.ConsumerMessage) {
 	for {
 		message := <-messages
 

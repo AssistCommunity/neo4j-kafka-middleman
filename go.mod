@@ -8,4 +8,5 @@ require (
 	github.com/neo4j/neo4j-go-driver v1.8.3 // indirect
 	github.com/neo4j/neo4j-go-driver/v4 v4.2.4
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
+	gopkg.in/yaml.v2 v2.4.0
 )
