@@ -72,9 +72,8 @@ var topicQueryMap = map[string]string{
 			r2.year_score = CASE WHEN CU.year = u.year THEN 1 ELSE 0 END,
 			r2.hostel_score = CASE WHEN CU.hostel = u.hostel THEN 1 ELSE 0 END
 
-		SET r1.branch_score = CASE WHEN CU.branch1 = u.branch2 XOR CU.branch2 = u.branch1 OR CU.branch1 = u.branch1 XOR CU.branch2 = u.branch1 THEN 1 
-								   WHEN CU.branch1 = u.branch2 AND CU.branch2 = u.branch1 OR CU.branch1 = u.branch1 AND CU.branch2 = u.branch1 THEN 2
-								   ELSE 0 END
+		WITH [n IN CU.branches WHERE n IN u.branches] as commonBranches
+		SET r1.branch_score = size(commonBranches)
 		SET r2.branch_score = r1.branch_score
 		RETURN CU
 	`,
