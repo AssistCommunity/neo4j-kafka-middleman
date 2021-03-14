@@ -76,6 +76,12 @@ var topicQueryMap = map[string]string{
 		SET r2.branch_score = r1.branch_score
 		RETURN CU
 	`,
+
+	"calculate-affinities": `
+		MATCH (u1:User {email: $email})-[r:AFFINITY_EDGE]->(u2:User)
+		SET r.total_score = 0.2*r.year_score + 0.3*r.branch_score + 0.3*r.hostel_score + 0.4*r.contact_score + 0.5*r.follows_score
+		RETURN r
+	`,
 }
 
 func QueryFromTopic(topic string) (string, error) {
