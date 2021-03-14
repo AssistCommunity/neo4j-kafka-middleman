@@ -1,11 +1,13 @@
-package kafka
+package kafkaIntegration
 
 import (
-	"fmt"
 	"strings"
 
+	"github.com/AssistCommunity/neo4j-kafka-middleman/logger"
 	"github.com/Shopify/sarama"
 )
+
+var log = logger.GetLogger()
 
 type KafkaConfig struct {
 	ClientID string `yaml:"client_id"`
@@ -22,7 +24,7 @@ func GetConsumer(config KafkaConfig) (sarama.Consumer, error) {
 	kafkaBrokers := config.Brokers
 
 	consumer, err := sarama.NewConsumer(kafkaBrokers, kafkaConfig)
-	fmt.Printf("%+v\n", consumer)
+	log.Infof("New Consumer Initialized %+v\n", consumer)
 	return consumer, err
 }
 
@@ -36,11 +38,13 @@ func Consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMess
 		partitions, _ := master.Partitions(topic)
 		// this only consumes partition no 1, you would probably want to consume all partitions
 		for _, partition := range partitions {
-			fmt.Println("Here")
+			// fmt.Println("Here")
+			log.Infof("Listening on %s partition number %d", topic, partition)
 			consumer, err := master.ConsumePartition(topic, partition, sarama.OffsetNewest)
 
 			if err != nil {
-				panic(err)
+				log.Error(err)
+				continue
 			}
 
 			go consumePartition(consumer, messages, errors)
