@@ -11,10 +11,6 @@ const (
 )
 
 var topicQueryMap = map[string]string{
-	"post-upvote": `
-		CREATE (n:TestNode {key: value}) RETURN n
-	`,
-
 	"sync-contacts": `
 		MATCH (CU:User {email: $email})
 		WITH CU
@@ -61,7 +57,25 @@ var topicQueryMap = map[string]string{
 		RETURN CU, u
 	`,
 	"complete-profile": `
-
+		MATCH (CU:User {email: $email})
+		SET CU.branch1 = $branch1, CU.branch2 = $branch2, CU.hostel = $hostel, CU.year = $year
+		MATCH (u:User {on_app: true})
+		MATCH (CU)-[r1:AFFINITY_EDGE]->(u)
+		MATCH (u)-[r2:AFFINITY_EDGE]->(CU) 
+		WITH CU, u
+		SET r1.year_score = CASE WHEN CU.year = u.year THEN 1 ELSE 0 END,
+			r1.hostel_score = CASE WHEN CU.hostel = u.hostel THEN 1 ELSE 0 END,
+			r2.year_score = CASE WHEN CU.year = u.year THEN 1 ELSE 0 END,
+			r2.hostel_score = CASE WHEN CU.hostel = u.hostel THEN 1 ELSE 0 END,
+		CALL apoc.do.case([
+			CU.branch1 = u.branch2 XOR CU.branch2 = u.branch1 OR CU.branch1 = u.branch1 XOR CU.branch2 = u.branch1,
+			'SET r1.branch_score = 1, r2.branch_score = 1',
+			CU.branch1 = u.branch2 AND CU.branch2 = u.branch1 OR CU.branch1 = u.branch1 AND CU.branch2 = u.branch1,
+			'SET r1.branch_score = 2, r2.branch_score = 2',			
+		],
+		'SET r1.branch_score = 0, r2.branch_score = 0', {CU: CU, u: u})
+		YIELD value
+		RETURN CU
 	`,
 }
 
