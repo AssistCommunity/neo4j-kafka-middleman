@@ -17,18 +17,15 @@ var topicQueryMap = map[string]string{
 	"sync-contacts": `
 		MATCH (CU:User {email: $email})
 		WITH CU
-		UNWIND $contacts as contact
-		MERGE (u:User {phone_number: contact.phone_number}) WHERE u.phone_number <> CU.phone_number 
-		ON CREATE 
-			SET u.on_app = false
+		UNWIND $contacts AS contact
+		MERGE (u:User {phone_number: contact.phone_number}) WHERE contact.phone_number <> u.phone_number
+		ON CREATE SET u.app=false
 		MERGE (CU)-[r:HAS_CONTACT]->(u)
-		SET r.contact_name = contact.name,
-			r.synced_on = CASE WHEN r.date IS NULL THEN datetime() ELSE r.date END
+		SET r.contact_name = contact.name, r.synced_on = CASE WHEN r.date IS NULL THEN datetime() ELSE r.date END
 		MERGE (CU)-[s:AFFINITY_EDGE]->(u)
-		ON CREATE 
-			SET s.total_score = 0
-		SET s.has_contact_score = 1
-		RETURN CU, r, u
+		ON CREATE SET s.total_score = 0, s.follows_score = 0, s.year_score = 0, s.branch_score = 0, s.hostel_score = 0
+		SET s.contact_score = 1
+		RETURN CU 
 	`,
 	"user-init": `
 		CREATE (CU:User {email: $email, phone_number: $phone_number, on_app: true}) 
