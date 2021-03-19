@@ -13,7 +13,11 @@ func Init(config Config) error {
 	log.Debugf("config: %+v\n", config)
 
 	// Init neo4j driver
-	neo4jDriver, _ := neo4jIntegration.GetDriver(config.Neo4j)
+	neo4jDriver, err := neo4jIntegration.GetDriver(config.Neo4j)
+
+	if err != nil {
+		return err
+	}
 	safeNeo4jSession := neo4jIntegration.GetLockableSession(neo4jDriver)
 
 	// Init kafka driver
