@@ -16,6 +16,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	print("Hello, world!")
+
 	log.Debugf("config: %+v\n", config)
 
 	panic(Init(*config))

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kafkaIntegration "github.com/AssistCommunity/neo4j-kafka-middleman/kafka"
+	"github.com/AssistCommunity/neo4j-kafka-middleman/kafkaIntegration"
 	"github.com/AssistCommunity/neo4j-kafka-middleman/neo4jIntegration"
 	"github.com/Shopify/sarama"
 )
