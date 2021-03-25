@@ -11,8 +11,9 @@ import (
 const CONFIG_PATH = "/conf/config.yaml"
 
 type Config struct {
-	Neo4j neo4jIntegration.Neo4jConfig `yaml:"neo4j"`
-	Kafka kafkaIntegration.KafkaConfig `yaml:"kafka"`
+	Neo4j        neo4jIntegration.Neo4jConfig `yaml:"neo4j"`
+	Kafka        kafkaIntegration.KafkaConfig `yaml:"kafka"`
+	TopicToQuery TopicToQuery                 `yaml:"topic-query"`
 }
 
 func NewConfig() (*Config, error) {

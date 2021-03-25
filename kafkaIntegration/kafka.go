@@ -5,9 +5,10 @@ import (
 
 	"github.com/AssistCommunity/neo4j-kafka-middleman/logger"
 	"github.com/Shopify/sarama"
+	"github.com/op/go-logging"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger(logging.DEBUG)
 
 type KafkaConfig struct {
 	ClientID string `yaml:"client_id"`

@@ -10,7 +10,6 @@ import (
 )
 
 func Init(config Config) error {
-	log.Debugf("config: %+v\n", config)
 
 	// Init neo4j driver
 	neo4jDriver, err := neo4jIntegration.GetDriver(config.Neo4j)
@@ -37,7 +36,7 @@ func Init(config Config) error {
 
 	kafkaMessages, errors := kafkaIntegration.Consume(topics, kafkaConsumer)
 
-	go neo4jProcessMessage(&safeNeo4jSession, kafkaMessages)
+	go neo4jProcessMessage(config.TopicToQuery, &safeNeo4jSession, kafkaMessages)
 
 	for {
 		err := <-errors
@@ -45,13 +44,13 @@ func Init(config Config) error {
 	}
 }
 
-func neo4jProcessMessage(session *neo4jIntegration.LockableNeo4jSession, messages chan *sarama.ConsumerMessage) {
+func neo4jProcessMessage(t TopicToQuery, session *neo4jIntegration.LockableNeo4jSession, messages chan *sarama.ConsumerMessage) {
 	for {
 		message := <-messages
 
 		topic := message.Topic
 
-		query, err := QueryFromTopic(topic)
+		query, err := t.GetQuery(topic)
 
 		if err != nil {
 			fmt.Println(err)

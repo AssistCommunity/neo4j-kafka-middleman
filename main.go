@@ -4,9 +4,10 @@ import (
 	"os"
 
 	"github.com/AssistCommunity/neo4j-kafka-middleman/logger"
+	"github.com/op/go-logging"
 )
 
-var log = logger.GetLogger()
+var log = logger.GetLogger(logging.DEBUG)
 
 func main() {
 	config, err := NewConfig()
@@ -15,10 +16,6 @@ func main() {
 		log.Errorf("Failed to load config")
 		os.Exit(1)
 	}
-
-	print("Hello, world!")
-
-	log.Debugf("config: %+v\n", config)
 
 	panic(Init(*config))
 }
