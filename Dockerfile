@@ -16,17 +16,15 @@ COPY . .
 
 RUN go build -o main .
 
-RUN mkdir /log
-
 FROM scratch
 
 WORKDIR /bin
 
 COPY --from=builder /build/main .
 
-COPY --from=builder /log /log
-
 WORKDIR /conf
 ADD config.yaml .
+
+WORKDIR /
 
 ENTRYPOINT ["/bin/main"]

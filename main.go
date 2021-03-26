@@ -17,5 +17,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.Info("Parsed config successfully")
+
 	panic(Init(*config))
 }

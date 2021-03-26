@@ -11,7 +11,7 @@ var doOnce sync.Once
 var log *logging.Logger
 
 var format = logging.MustStringFormatter(
-	`%{color}%{time:15:04:05.000} ▶ %{shortfunc} %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 )
 
 func initLogger(logLevel logging.Level) *logging.Logger {
