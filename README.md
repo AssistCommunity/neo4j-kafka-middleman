@@ -21,7 +21,7 @@ topic-query:
 ```
 
 ### Building 
-You can build the docker image by running
+You can build a very minimal docker image (<10MB) by running
 
 ```
 docker build . -t neo4j-kafka-middleman
