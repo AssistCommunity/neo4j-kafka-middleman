@@ -1,67 +1,78 @@
 package kafkaIntegration
 
 import (
-	"strings"
+	"context"
 
 	"github.com/AssistCommunity/neo4j-kafka-middleman/logger"
 	"github.com/Shopify/sarama"
-	"github.com/op/go-logging"
 )
 
-var log = logger.GetLogger(logging.DEBUG)
+var log = logger.GetLogger()
 
 type KafkaConfig struct {
-	ClientID string `yaml:"client_id"`
-
+	GroupID string   `yaml:"group_id"`
 	Brokers []string `yaml:"brokers"`
 }
 
-func GetConsumer(config KafkaConfig) (sarama.Consumer, error) {
+type Handler struct {
+	messages chan *sarama.ConsumerMessage
+	errors   chan error
+}
+
+func GetClient(config KafkaConfig) (sarama.ConsumerGroup, error) {
 	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.ClientID = "neo4j-kafka-go"
 
 	kafkaConfig.Consumer.Return.Errors = true
 
 	kafkaBrokers := config.Brokers
+	kafkaGroup := config.GroupID
 
-	consumer, err := sarama.NewConsumer(kafkaBrokers, kafkaConfig)
-	log.Infof("New Consumer Initialized %+v\n", consumer)
-	return consumer, err
+	client, err := sarama.NewConsumerGroup(kafkaBrokers, kafkaGroup, kafkaConfig)
+
+	return client, err
 }
 
-func Consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
+func Consume(topics []string, client *sarama.ConsumerGroup) (chan *sarama.ConsumerMessage, chan error) {
 	messages := make(chan *sarama.ConsumerMessage)
-	errors := make(chan *sarama.ConsumerError)
-	for _, topic := range topics {
-		if strings.HasPrefix(topic, "__") {
-			continue
-		}
-		partitions, _ := master.Partitions(topic)
-		// this only consumes partition no 1, you would probably want to consume all partitions
-		for _, partition := range partitions {
-			// fmt.Println("Here")
-			log.Infof("Listening on %s partition number %d", topic, partition)
-			consumer, err := master.ConsumePartition(topic, partition, sarama.OffsetNewest)
+	errors := make(chan error)
 
-			if err != nil {
-				log.Error(err)
-				continue
+	handler := &Handler{
+		messages,
+		errors,
+	}
+
+	ctx := context.Background()
+	go func() {
+		for {
+			if err := (*client).Consume(ctx, topics, handler); err != nil {
+				handler.errors <- err
+				return
 			}
 
-			go consumePartition(consumer, messages, errors)
+			if err := ctx.Err(); err != nil {
+				handler.errors <- err
+				return
+			}
 		}
-	}
+	}()
 
 	return messages, errors
 }
 
-func consumePartition(consumer sarama.PartitionConsumer, messages chan *sarama.ConsumerMessage, errors chan *sarama.ConsumerError) {
-	for {
-		select {
-		case consumeError := <-consumer.Errors():
-			errors <- consumeError
-		case message := <-consumer.Messages():
-			messages <- message
-		}
+func (handler *Handler) Setup(sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (handler *Handler) Cleanup(sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (handler *Handler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for message := range claim.Messages() {
+		handler.messages <- message
+		log.Infof("Message claimed: value = %s timestamp = %v topic = %s", string(message.Value), message.Timestamp, message.Topic)
+		session.MarkMessage(message, "read")
 	}
+
+	return nil
 }

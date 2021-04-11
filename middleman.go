@@ -19,22 +19,26 @@ func Init(config Config) error {
 	}
 	safeNeo4jSession := neo4jIntegration.GetLockableSession(neo4jDriver)
 
+	log.Info("Connected to Neo4j database")
+
 	// Init kafka driver
-	kafkaConsumer, err := kafkaIntegration.GetConsumer(config.Kafka)
+	kafkaClient, err := kafkaIntegration.GetClient(config.Kafka)
 
 	if err != nil {
 		log.Errorf("%s", err)
 		return err
 	}
 
-	topics, err := kafkaConsumer.Topics()
+	log.Info("Connected to Kafka cluster")
+
+	topics := config.TopicToQuery.GetTopics()
 
 	if err != nil {
 		log.Errorf("%s", err)
 		return err
 	}
 
-	kafkaMessages, errors := kafkaIntegration.Consume(topics, kafkaConsumer)
+	kafkaMessages, errors := kafkaIntegration.Consume(topics, &kafkaClient)
 
 	go neo4jProcessMessage(config.TopicToQuery, &safeNeo4jSession, kafkaMessages)
 
@@ -50,6 +54,8 @@ func neo4jProcessMessage(t TopicToQuery, session *neo4jIntegration.LockableNeo4j
 
 		topic := message.Topic
 
+		log.Infof("New message on topic: %s", topic)
+
 		query, err := t.GetQuery(topic)
 
 		if err != nil {
@@ -62,11 +68,10 @@ func neo4jProcessMessage(t TopicToQuery, session *neo4jIntegration.LockableNeo4j
 		err = json.Unmarshal(message.Value, &params)
 
 		if err != nil {
-			fmt.Println(err)
+			log.Errorf("Error while unmarshalling params: %s", err)
 			continue // replace with continue
 		}
 
-		log.Infof("New Event on topic %s", topic)
 		log.Debugf("Query: %s", query)
 		Neo4jRunQuery(session, query, params)
 	}

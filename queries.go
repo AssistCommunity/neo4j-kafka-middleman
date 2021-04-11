@@ -7,7 +7,6 @@ import (
 	"github.com/AssistCommunity/neo4j-kafka-middleman/logger"
 	"github.com/AssistCommunity/neo4j-kafka-middleman/neo4jIntegration"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
-	"github.com/op/go-logging"
 )
 
 const (
@@ -21,6 +20,15 @@ func (t *TopicToQuery) GetQuery(topic string) (string, error) {
 		return query, nil
 	}
 	return "", fmt.Errorf("cannot find matching query for topic: %s", topic)
+}
+
+func (t *TopicToQuery) GetTopics() []string {
+	keys := make([]string, 0, len(*t))
+	for k := range *t {
+		keys = append(keys, k)
+	}
+
+	return keys
 }
 
 func Neo4jRunQuery(session *neo4jIntegration.LockableNeo4jSession, query string, params map[string]interface{}) error {
@@ -49,7 +57,7 @@ func Neo4jRunQuery(session *neo4jIntegration.LockableNeo4jSession, query string,
 		return err
 	}
 
-	var log = logger.GetLogger(logging.DEBUG)
+	var log = logger.GetLogger()
 	log.Infof("Neo4j query executed in %s", elapsed)
 
 	return nil

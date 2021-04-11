@@ -2,34 +2,29 @@ package logger
 
 import (
 	"os"
-	"sync"
 
 	"github.com/op/go-logging"
 )
 
-var doOnce sync.Once
 var log *logging.Logger
 
 var format = logging.MustStringFormatter(
 	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 )
 
-func initLogger(logLevel logging.Level) *logging.Logger {
-	log := logging.MustGetLogger("logger")
+func init() {
+	log = logging.MustGetLogger("example")
+	backend1 := logging.NewLogBackend(os.Stdout, "", 0)
 
-	stdOutBackend := logging.NewLogBackend(os.Stdout, "", 0)
+	backend1Formatter := logging.NewBackendFormatter(backend1, format)
+	backend1Leveled := logging.AddModuleLevel(backend1Formatter)
 
-	stdOutBackendFormatter := logging.NewBackendFormatter(stdOutBackend, format)
-	stdOutBackendLeveled := logging.AddModuleLevel(stdOutBackendFormatter)
-	stdOutBackendLeveled.SetLevel(logLevel, "")
+	backend1Leveled.SetLevel(logging.DEBUG, "")
 
-	return log
+	logging.SetBackend(backend1Leveled)
+
 }
 
-func GetLogger(logLevel logging.Level) *logging.Logger {
-	doOnce.Do(func() {
-		log = initLogger(logLevel)
-	})
-
+func GetLogger() *logging.Logger {
 	return log
 }

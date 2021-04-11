@@ -16,10 +16,10 @@ type Config struct {
 	TopicToQuery TopicToQuery                 `yaml:"topic-query"`
 }
 
-func NewConfig() (*Config, error) {
+func NewConfig(confPath string) (*Config, error) {
 	config := &Config{}
 
-	file, err := os.Open("/conf/config.yaml")
+	file, err := os.Open(confPath)
 	if err != nil {
 		return nil, err
 	}
